@@ -6,6 +6,11 @@ from neo4j import GraphDatabase
 from neo4j_graphrag.embeddings.openai import OpenAIEmbeddings
 from neo4j_graphrag.retrievers import VectorRetriever
 
+from neo4j_graphrag.llm import OpenAILLM
+from neo4j_graphrag.generation import GraphRAG
+
+import ast
+
 # Connect to Neo4j database
 driver = GraphDatabase.driver(
     os.getenv("NEO4J_URI"), 
@@ -28,10 +33,34 @@ retriever = VectorRetriever(
 )
 
 # Create the LLM
+llm = OpenAILLM(
+    model_name="gpt-5.2",
+    model_params={
+        "reasoning_effort": "low",
+        "temperature": 1,
+    })
 
 # Create GraphRAG pipeline
+rag = GraphRAG(retriever=retriever, llm=llm)
 
-# Search 
+# Search
+query_text = "Find me movies about toys coming alive"
+
+response = rag.search(
+    query_text=query_text, 
+    retriever_config={"top_k": 5},
+    return_context=True
+)
+
+print("LLM Answer:", response.answer)
+
+
+print(f"\n\n\n\n")
+
+# Parse results
+for item in response.retriever_result.items:
+    properties = ast.literal_eval(item.content)
+    print(f"Retrieved: {properties["title"]}, {item.metadata["score"]}")
 
 # CLose the database connection
 driver.close()
